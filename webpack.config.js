@@ -1,5 +1,19 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const TerserPlugin = require('terser-webpack-plugin');
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer')
+  .BundleAnalyzerPlugin;
+
+const getPlugins = env =>
+  [
+    new HtmlWebpackPlugin({
+      filename: 'index.html',
+      template: path.join(__dirname, './dist/static/index.html'),
+      inject: true,
+      chunks: ['app', 'vendors']
+    }),
+    env.analyze && new BundleAnalyzerPlugin()
+  ].filter(plugin => plugin);
 
 module.exports = env => {
   const config = {
@@ -24,16 +38,45 @@ module.exports = env => {
       ],
       extensions: ['.js', '.jsx', 'json']
     },
-    plugins: [
-      new HtmlWebpackPlugin({
-         filename: path.join(__dirname, "./dist/static/index.html"),
-         inject: true,
-         chunks: ["app", "vendors"],
-      })
-    ],
+    plugins: getPlugins(env),
+    module: {
+      rules: [
+        {
+          test: /\.(js|jsx)$/,
+          exclude: /node_modules/,
+          use: ['babel-loader']
+        }
+      ]
+    },
     optimization: {
-      splitChunks: {},
-      minimizer: []
+      splitChunks: {
+        chunks: 'all',
+        name: false
+      },
+      minimizer: [
+        new TerserPlugin({
+          terserOptions: {
+            parse: {
+              ecma: 8
+            },
+            compress: {
+              ecma: 5,
+              warnings: false,
+              comparisons: false,
+              inline: 2,
+              drop_console: true
+            },
+            output: {
+              ecma: 5,
+              comments: false
+            }
+          },
+          parallel: true,
+          // Enable file caching
+          cache: true,
+          sourceMap: true
+        })
+      ]
     },
     devServer: {
       contentBase: path.join(__dirname, '/dist/static/'),
